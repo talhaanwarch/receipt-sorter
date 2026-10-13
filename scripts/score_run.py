@@ -4,7 +4,8 @@
 
 With several runs it also prints, per cell, the lowest and highest "all 3" count, the median
 seconds per receipt and the dollars per 1,000 receipts. A reply that failed at the provider
-(a 429, for example) is counted as an error, not as a wrong answer.
+(a 429, for example) is counted as an error, not as a wrong answer, and a cell that had
+any is left out of the ranges.
 
 For every (prompt version, model) cell it reads each example's raw model output and
 compares company, date and total with the labels. The company must match after
@@ -96,6 +97,8 @@ async def score(run_id: str) -> list[dict]:
 
 
 def summarize(rows: list[dict]) -> None:
+    """Ranges per cell. A cell with provider errors is left out: those calls say nothing about the model."""
+    rows = [r for r in rows if not r["errors"]]
     print(f"\n{'cell':<22}{'runs':>5}{'all 3 (min-max)':>17}{'lenient co.':>13}{'errors':>8}{'median s':>10}{'$/1000':>9}{'judge avg':>11}")
     for cell in dict.fromkeys(r["cell"] for r in rows):
         rs = [r for r in rows if r["cell"] == cell]
