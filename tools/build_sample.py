@@ -5,7 +5,7 @@ picks 50 receipts with a fixed seed, writes the images to data/receipts/ and the
 expected answers to data/labels.json.
 
 Source: ICDAR 2019 SROIE, CC BY 4.0, via https://huggingface.co/datasets/jsdnrs/ICDAR2019-SROIE
-Images are not committed to git; run this script to recreate them.
+Images are committed under data/receipts/ (see NOTICE); this script rebuilds the same files.
 """
 import io
 import json

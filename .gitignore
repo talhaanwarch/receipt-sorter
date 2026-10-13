@@ -4,5 +4,4 @@ __pycache__/
 *.pyc
 .streamlit/secrets.toml
 .cache/
-data/receipts/
-data/transcripts/
+data/results/

@@ -1,16 +1,14 @@
 """The extraction prompt, one constant per version. AcruxCore stores the versions;
 these strings are what scripts/setup_acruxcore.py commits."""
 
-USER = "Receipt text:\n\n{{ transcript }}"
-
 V1_SYSTEM = (
-    "You read the text of a store receipt and return three fields as JSON: "
+    "You read a photo of a store receipt and return three fields as JSON: "
     '"company" (the store name), "date" (as DD/MM/YYYY) and "total" (the total amount, as a '
     "number). Reply with the JSON object only."
 )
 
 V2_SYSTEM = (
-    "You read the text of a store receipt and return three fields as JSON.\n"
+    "You read a photo of a store receipt and return three fields as JSON.\n"
     '- "company": the name of the store that issued the receipt, as printed at the top, '
     "including suffixes such as SDN BHD. Not the customer, not the branch address.\n"
     '- "date": the date of the sale as DD/MM/YYYY. Malaysian receipts print day first. '
@@ -24,7 +22,14 @@ V2_SYSTEM = (
 
 VERSIONS = {1: V1_SYSTEM, 2: V2_SYSTEM}
 
+# {{ receipt_url }} is filled at call time: a public link, or a data: URL for an uploaded photo.
+USER_PARTS = [
+    {"type": "text", "text": "Read this receipt."},
+    {"type": "image_url", "image_url": {"url": "{{ receipt_url }}"}},
+]
 
-def messages(version: int) -> list[dict[str, str]]:
-    """Chat messages for a prompt version, with the transcript left as a template variable."""
-    return [{"role": "system", "content": VERSIONS[version]}, {"role": "user", "content": USER}]
+
+def messages(version: int) -> list[dict]:
+    """Chat messages for a prompt version. The image part sits in the user message,
+    the only role that may hold one."""
+    return [{"role": "system", "content": VERSIONS[version]}, {"role": "user", "content": USER_PARTS}]

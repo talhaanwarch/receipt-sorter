@@ -33,8 +33,8 @@ async def main(versions: list[int]) -> None:
         by_number = {v.version_number: v.id for v in (await hub.prompts.list_versions(prompt.id)).data}
         dataset = next(d for d in await hub.datasets.list() if d.name == DATASET)
         exp = await hub.experiments.create(
-            dataset.id, [by_number[v] for v in versions], list(MODELS),
-            prompt_id=prompt.id, name=f"receipts: prompt v{','.join(map(str, versions))} x {len(MODELS)} models",
+            dataset.id, [by_number[v] for v in versions], [m for m in MODELS if m.startswith('rs-')],
+            prompt_id=prompt.id, name=f"receipts: prompt v{','.join(map(str, versions))} x {len([m for m in MODELS if m.startswith('rs-')])} models",
         )
         run = await hub.experiments.start_run(exp.id)
         print("run", run.run_id, run.status, flush=True)

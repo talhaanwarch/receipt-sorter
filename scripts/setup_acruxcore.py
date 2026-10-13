@@ -2,11 +2,11 @@
 
     python scripts/setup_acruxcore.py
 
-1. Registers the extraction models on the team's OpenRouter connection.
+1. Registers the extraction models, and the judge's model, on the team's OpenRouter connection.
 2. Creates the `receipt-extract` prompt: version 1 on production, version 2 committed
    and put on the staging alias.
-3. Creates the `receipt-sorter-sroie-50` dataset from the Gemma transcripts, one example
-   per receipt, with the expected company, date and total as the grading criteria.
+3. Creates the `receipt-sorter-sroie-50` dataset: one example per receipt holding the public
+   link to its image, with the expected company, date and total as the grading criteria.
 """
 import asyncio
 import json
@@ -25,9 +25,12 @@ MODELS = {
     "rs-qwen3-vl-30b": ("qwen/qwen3-vl-30b-a3b-instruct", 0.15, 0.60),
     "rs-qwen3-vl-8b": ("qwen/qwen3-vl-8b-instruct", 0.25, 0.75),
     "rs-gpt-5.4-mini": ("openai/gpt-5.4-mini", 0.75, 4.50),
+    # The evaluation judge looks up a model by the name in the server's EVAL_JUDGE_MODEL
+    # setting, `gpt-4o-mini` by default. Without a model registered under that name every
+    # example stays unscored with "Model 'gpt-4o-mini' is not registered".
+    "gpt-4o-mini": ("openai/gpt-4o-mini", 0.15, 0.60),
 }
 DATASET = "receipt-sorter-sroie-50"
-TRANSCRIPT_SOURCE = "gemma-4-31b"
 
 
 async def register_models(http: httpx.AsyncClient) -> None:
@@ -51,7 +54,7 @@ async def ensure_prompt(hub: acrux.AcruxCore) -> str:
     if found:
         print(f"prompt {config.PROMPT_NAME}: exists")
         return found[0].id
-    prompt = await hub.prompts.create(config.PROMPT_NAME, description="Pulls company, date and total out of a receipt's text.")
+    prompt = await hub.prompts.create(config.PROMPT_NAME, description="Reads company, date and total from a receipt photo.")
     v1 = await hub.prompts.commit_version(prompt.id, prompts.messages(1))
     await hub.prompts.promote_alias(prompt.id, "production", v1.version_number)
     v2 = await hub.prompts.commit_version(prompt.id, prompts.messages(2))
@@ -76,9 +79,11 @@ async def ensure_dataset(hub: acrux.AcruxCore) -> None:
         return
     ds = existing or await hub.datasets.create(DATASET, overall_feedback="Three fields must all be exactly right.")
     labels = json.loads(config.LABELS.read_text())
-    for label in labels:
-        text = json.loads((config.TRANSCRIPTS / TRANSCRIPT_SOURCE / f"{label['id']}.json").read_text())["text"]
-        await hub.datasets.add_example(ds.id, {"transcript": text}, criteria=criteria(label))
+    # The input is a link, not the image: an example's input is capped at 8,192 bytes.
+    await hub.datasets.add_examples(ds.id, [
+        {"input": {"receipt_url": f"{config.IMAGE_BASE_URL}/{label['id']}.jpg"}, "criteria": criteria(label)}
+        for label in labels
+    ])
     print(f"dataset {DATASET}: {len(labels)} examples")
 
 

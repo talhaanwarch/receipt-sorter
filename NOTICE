@@ -1,0 +1,10 @@
+The receipt images in data/receipts/ and the expected answers in data/labels.json come from
+the test split of SROIE (ICDAR 2019 Robust Reading Challenge on Scanned Receipts OCR and
+Information Extraction), as published on Hugging Face by jsdnrs under CC BY 4.0:
+https://huggingface.co/datasets/jsdnrs/ICDAR2019-SROIE
+
+Huang, Z., Chen, K., He, J., Bai, X., Karatzas, D., Lu, S., Jawahar, C.V.
+"ICDAR2019 Competition on Scanned Receipt OCR and Information Extraction", ICDAR 2019.
+
+The images are resized to a long side of 1600 px and re-encoded as JPEG. No other change.
+The code in this repository is Apache-2.0 (see LICENSE); the data keeps its own licence.

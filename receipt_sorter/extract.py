@@ -1,11 +1,13 @@
-"""Stage 2: turn a receipt's text into company, date and total.
+"""Read a receipt photo: one call through the AcruxCore gateway.
 
 The prompt lives in AcruxCore as `receipt-extract`; the alias picks the version.
-The call goes through the AcruxCore gateway, which records a trace linked to that
-prompt version.
+The gateway records a trace linked to that prompt version.
 """
+import base64
 import json
+import mimetypes
 import re
+import time
 from dataclasses import dataclass
 
 import acruxcore as acrux
@@ -20,6 +22,7 @@ class Fields:
     total: str
     trace_id: str | None
     raw: str
+    seconds: float
 
 
 def parse_fields(reply: str) -> dict[str, str]:
@@ -35,11 +38,17 @@ def parse_fields(reply: str) -> dict[str, str]:
     return {k: str(data.get(k, "")).strip() for k in ("company", "date", "total")}
 
 
-async def extract_fields(transcript: str, model: str | None = None, alias: str | None = None, tags: list[str] | None = None) -> Fields:
-    """Renders the prompt for ``alias`` and runs it on a model registered in AcruxCore.
+def to_data_url(content: bytes, filename: str) -> str:
+    """Encodes an uploaded photo as a ``data:`` URL, the form the gateway accepts for a file."""
+    mime = mimetypes.guess_type(filename)[0] or "image/jpeg"
+    return f"data:{mime};base64,{base64.b64encode(content).decode()}"
+
+
+async def extract_fields(receipt_url: str, model: str | None = None, alias: str | None = None, tags: list[str] | None = None) -> Fields:
+    """Renders the prompt for ``alias`` with the image and runs it on a registered vision model.
 
     Args:
-        transcript: the receipt text from stage 1.
+        receipt_url: a public ``http(s)`` link or a ``data:image/...;base64,...`` value.
         model: AcruxCore public model name; defaults to ``config.EXTRACT_MODEL``.
         alias: prompt alias, ``production`` or ``staging``; defaults to ``config.PROMPT_ALIAS``.
         tags: extra trace tags.
@@ -50,11 +59,13 @@ async def extract_fields(transcript: str, model: str | None = None, alias: str |
     model = model or config.EXTRACT_MODEL
     alias = alias or config.PROMPT_ALIAS
     async with acrux.AcruxCore(api_key=config.ACRUXCORE_API_KEY, base_url=config.ACRUXCORE_BASE_URL) as hub:
-        rendered = await hub.prompts.render(config.PROMPT_NAME, alias, {"transcript": transcript})
+        rendered = await hub.prompts.render(config.PROMPT_NAME, alias, {"receipt_url": receipt_url})
+        started = time.perf_counter()
         result = await hub.gateway.chat(
-            model, rendered.messages, temperature=0, max_tokens=3000,
+            model, rendered.messages, temperature=0, max_tokens=500,
             prompt_version_id=rendered.version_id, variables=rendered.variables,
             trace={"name": "extract-receipt-fields", "tags": ["receipt-sorter", alias, *(tags or [])], "metadata": {"model": model}},
         )
+        seconds = time.perf_counter() - started
         fields = parse_fields(result.content or "")
-        return Fields(**fields, trace_id=result.gateway.trace_id, raw=result.content or "")
+        return Fields(**fields, trace_id=result.gateway.trace_id, raw=result.content or "", seconds=seconds)
