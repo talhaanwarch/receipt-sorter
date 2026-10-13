@@ -5,7 +5,8 @@
 For every (prompt version, model) cell it reads each example's raw model output and
 compares company, date and total with the labels. The company must match after
 removing case and punctuation; the date must be the same day; the total must be the
-same number (31.9 equals 31.90). Also prints how many examples the judge scored.
+same number (31.9 equals 31.90). A lenient company match, one name inside the other, is
+counted too, because labels hold legal names. Also prints how many examples the judge scored.
 """
 import asyncio
 import dataclasses
@@ -23,6 +24,11 @@ from receipt_sorter.extract import parse_fields  # noqa: E402
 
 def squash(s: str) -> str:
     return re.sub(r"[^A-Z0-9]", "", s.upper())
+
+
+def lenient(a: str, b: str) -> bool:
+    a, b = squash(a), squash(b)
+    return bool(a) and bool(b) and (a in b or b in a)
 
 
 def same_date(a: str, b: str) -> bool:
@@ -51,7 +57,7 @@ async def score(run_id: str) -> list[dict]:
         report = await hub.runs.get_report(run_id)
         for cell in report.cells:
             detail = dataclasses.asdict(await hub.runs.get_cell(run_id, cell["cellKey"]))
-            tally = {"n": 0, "company": 0, "date": 0, "total": 0, "all": 0, "unparsed": 0}
+            tally = {"n": 0, "company": 0, "company_lenient": 0, "date": 0, "total": 0, "all": 0, "unparsed": 0}
             for ex in detail["examples"]:
                 want = expected(ex["criteria"])
                 tally["n"] += 1
@@ -61,7 +67,7 @@ async def score(run_id: str) -> list[dict]:
                     tally["unparsed"] += 1
                     continue
                 c, d, t = squash(got["company"]) == squash(want["company"]), same_date(got["date"], want["date"]), same_total(got["total"], want["total"])
-                tally["company"] += c; tally["date"] += d; tally["total"] += t; tally["all"] += c and d and t
+                tally["company"] += c; tally["company_lenient"] += lenient(got["company"], want["company"]); tally["date"] += d; tally["total"] += t; tally["all"] += c and d and t
             rows.append({"run": run_id, "cell": cell["cellKey"], "judge_scored": cell["scoredCount"], "judge_avg": cell["avgScore"], **tally})
     return rows
 
