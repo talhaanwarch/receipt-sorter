@@ -37,7 +37,7 @@ async def main(versions: list[int], repeat: int, models: list[str]) -> None:
         for n in range(1, repeat + 1):
             exp = await hub.experiments.create(
                 dataset.id, [by_number[v] for v in versions], models, prompt_id=prompt.id,
-                name=f"receipts: repeat {n}/{repeat}, prompt v{','.join(map(str, versions))} x {len(models)} models",
+                name=f"receipts: repeat {n}/{repeat}, {'all ' + str(len(models)) + ' models' if len(models) > 1 else models[0] + ' only'}, prompt v{','.join(map(str, versions))}",
             )
             run = await hub.experiments.start_run(exp.id)
             print(f"run {n}/{repeat}", run.run_id, run.status, flush=True)
