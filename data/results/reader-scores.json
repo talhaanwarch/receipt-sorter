@@ -1,0 +1,29 @@
+{
+ "gemma-4-31b": {
+  "company": 49,
+  "date": 47,
+  "total": 50,
+  "all": 46,
+  "n": 50,
+  "median_seconds": 16.868123306005145,
+  "usd_per_1000": 0.15416062199999997
+ },
+ "gpt-5.4-mini": {
+  "company": 49,
+  "date": 49,
+  "total": 50,
+  "all": 48,
+  "n": 50,
+  "median_seconds": 3.5736145404953277,
+  "usd_per_1000": 2.4558187499999997
+ },
+ "qwen3-vl-30b": {
+  "company": 49,
+  "date": 47,
+  "total": 50,
+  "all": 46,
+  "n": 50,
+  "median_seconds": 14.374352555001678,
+  "usd_per_1000": 0.40190931
+ }
+}
